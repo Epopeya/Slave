@@ -31,20 +31,20 @@ void encoderInt() {
 }
 
 float computeMotorSpeed() {
-        error = target_speed - current_speed;
-        cum_error += error * elapsed_time;
-        rate_error = (error - last_error) / elapsed_time;
+    error = target_speed - current_speed;
+    cum_error += error * elapsed_time;
+    rate_error = (error - last_error) / elapsed_time;
  
-        float output = Kp*error + Ki*cum_error + Kd*rate_error;
+    float output = Kp*error + Ki*cum_error + Kd*rate_error;
 
-        last_error = error;
+    last_error = error;
  
-        return output;
+    return output;
 }
 
 void setup() {
     attachInterrupt(32, encoderInt, RISING);
-    hs.begin(115200, SERIAL_8N1, 4, 2);
+    hs.begin(1000000, SERIAL_8N1, 4, 2);
     Serial.begin(9600);
     servo.attach(13);
 
@@ -85,6 +85,7 @@ void loop() {
         previous_time = current_time;
 
         current_speed = encoder_diff / elapsed_time;
+        hs.println(encoder_diff);
         encoder_diff = 0;
         int motor_speed = computeMotorSpeed();
         analogWrite(14, motor_speed);
