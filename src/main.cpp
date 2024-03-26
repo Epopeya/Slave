@@ -9,6 +9,9 @@
 // Connecion with master
 HardwareSerial hs(1);
 
+#define BATTERY_REPORT_RATE 500
+unsigned long last_battery_report = 0;
+
 enum SerialCommands {
   SerialMotor,
   SerialServo,
@@ -102,5 +105,11 @@ void loop() {
     int motor_speed = computeMotorSpeed();
     analogWrite(14, motor_speed);
     next_motor_write = next_motor_write + 10;
+  }
+
+  if ((millis() - last_battery_report) > BATTERY_REPORT_RATE) {
+    hs.write(SerialBattery);
+    float voltage = analogRead(36) / 430.0f;  // WARN: This conversion factor isn't very precise
+    hs.write((uint8_t *)&voltage, sizeof(float));
   }
 }
