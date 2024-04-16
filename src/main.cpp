@@ -9,7 +9,7 @@
 // Connecion with master
 HardwareSerial hs(1);
 
-#define BATTERY_REPORT_RATE 500
+#define BATTERY_REPORT_RATE 50
 unsigned long last_battery_report = 0;
 
 enum SerialCommands {
@@ -111,5 +111,6 @@ void loop() {
     hs.write(SerialBattery);
     float voltage = analogRead(36) / 430.0f;  // WARN: This conversion factor isn't very precise
     hs.write((uint8_t *)&voltage, sizeof(float));
+    last_battery_report = millis();
   }
 }
