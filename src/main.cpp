@@ -45,6 +45,8 @@ float computeMotorSpeed() {
   cum_error += error * elapsed_time;
   rate_error = (error - last_error) / elapsed_time;
 
+  cum_error = min(cum_error, 100.0f);
+
   float output = Kp * error + Ki * cum_error + Kd * rate_error;
 
   last_error = error;
@@ -79,12 +81,14 @@ void loop() {
           int speed = 0;
           hs.readBytes((uint8_t *)&speed, sizeof(int));
           target_speed = speed / 100.0f;
+          break;
         }
       case SerialServo:
         {
           int angle = 0;
           hs.readBytes((uint8_t *)&angle, sizeof(int));
           servo.write(constrain(angle, SERVO_MIN, SERVO_MAX));  // Shouldn't this be executed periodically along motor_speed?
+          break;
         }
     }
   }
@@ -103,7 +107,7 @@ void loop() {
 
     encoder_diff = 0;
     int motor_speed = computeMotorSpeed();
-    analogWrite(14, motor_speed);
+    analogWrite(14, min(motor_speed, 120));
     next_motor_write = next_motor_write + 10;
   }
 
