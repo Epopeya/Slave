@@ -111,9 +111,9 @@ void loop() {
   }
 
   if ((millis() - last_battery_report) > BATTERY_REPORT_RATE) {
+    uint16_t voltage = analogRead(36);
     hs.write(SerialBattery);
-    float voltage = analogRead(36) / 430.0f;  // WARN: This conversion factor isn't very precise
-    hs.write((uint8_t *)&voltage, sizeof(float));
+    hs.write((uint8_t *)&voltage, sizeof(uint16_t));
     last_battery_report = millis();
   }
 }
