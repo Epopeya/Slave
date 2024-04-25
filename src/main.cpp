@@ -1,9 +1,8 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
 
-#define SERVO_MAX 120
-#define SERVO_MIN 60
-#define SERVO_MID ((SERVO_MAX + SERVO_MIN) / 2)
+#define SERVO_MAX 115
+#define SERVO_MIN 80
 #define MOTOR_PIN 14
 
 // Connecion with master
