@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
+#include <Pixy2.h>
+
 
 #define SERVO_MAX 120
 #define SERVO_MIN 60
@@ -9,6 +11,21 @@
 // Connecion with master
 HardwareSerial hs(1);
 
+Pixy2 pixy;
+
+#define BLOCK_LIFE_TIME 100 // millis after which block is ded
+#define BLOCK_MIN_AGE 2 // min frames before block is in frame
+
+int greenX = 0;
+int greenY = 0;
+bool greenInFrame = false;
+int greenLastFrame = 0;
+
+int redX = 0;
+int redY = 0;
+bool redInFrame = false;
+int redLastFrame = 0;
+
 #define BATTERY_REPORT_RATE 50
 unsigned long last_battery_report = 0;
 
@@ -16,7 +33,8 @@ enum SerialCommands {
   SerialMotor,
   SerialServo,
   SerialEncoder,
-  SerialBattery
+  SerialBattery,
+  SerialBlocks
 };
 
 Servo servo;
@@ -27,6 +45,7 @@ float elapsed_time;
 unsigned long current_time, previous_time;
 
 unsigned long next_motor_write = 0;
+
 
 // PID parameters
 float Kp = 2, Ki = 1, Kd = 1;
@@ -54,6 +73,72 @@ float computeMotorSpeed() {
   return output;
 }
 
+void sendSerialBlocks(int color, bool inFrame) {
+  const int negativeOne = -1;
+  if (color == 0) { // 0 green, 1 red
+    hs.write(SerialBlocks);
+    hs.write(color); 
+    if (inFrame) {
+      Serial.printf("Green is in frame: x -> %i, y -> %i\n", greenX, greenY);
+      hs.write((uint8_t *)&greenX, sizeof(int));
+      hs.write((uint8_t *)&greenY, sizeof(int));
+          } else {
+      hs.write((uint8_t *)&negativeOne, sizeof(int));
+        hs.write((uint8_t *)&negativeOne, sizeof(int));
+
+    }
+  }
+   else if (color == 1) {
+    hs.write(SerialBlocks);
+    hs.write(color);
+    if (inFrame) {
+      hs.write((uint8_t *)&redX, sizeof(int));
+      hs.write((uint8_t *)&redY, sizeof(int));
+      Serial.printf("Red is in frame: x -> %i, y -> %i\n", redX, redY);
+    } else {
+      hs.write((uint8_t *)&negativeOne, sizeof(int));
+      hs.write((uint8_t *)&negativeOne, sizeof(int));
+    }
+  }  
+}
+TaskHandle_t camera_processing;
+void cameraProcessing(void *pvParameters) {
+  for (;;) {
+    vTaskDelay(10);
+    // detect blocks
+    pixy.ccc.getBlocks();
+    if (pixy.ccc.numBlocks)
+    {
+      for (int i=0; i<pixy.ccc.numBlocks; i++)
+      {
+        Block *current_block = &pixy.ccc.blocks[i];
+        if (current_block->m_signature == 1) { // green block
+          greenX = current_block->m_x;
+          greenY = current_block->m_y;
+          if (current_block->m_age > 2) {
+            greenInFrame = true;
+            greenLastFrame = millis();
+          }
+        }
+        if (current_block->m_signature == 2) { // red block
+          redX = current_block->m_x;
+          redY = current_block->m_y;
+          if (current_block->m_age > 2) {
+            redInFrame = true;
+            redLastFrame = millis();
+          }
+        }
+      }
+    }  
+
+    // check if blocks should be out of frame
+    if (greenInFrame && millis() - greenLastFrame > BLOCK_LIFE_TIME) { greenInFrame = false; sendSerialBlocks(0, false); }
+    if (redInFrame && millis() - redLastFrame > BLOCK_LIFE_TIME) { redInFrame = false;  sendSerialBlocks(1, false); }
+    if (greenInFrame) { sendSerialBlocks(0, true); }
+    if (redInFrame) { sendSerialBlocks(1, true); }
+  }
+}
+
 void setup() {
   attachInterrupt(32, encoderInt, RISING);
   hs.begin(1000000, SERIAL_8N1, 4, 2);
@@ -69,9 +154,51 @@ void setup() {
   digitalWrite(25, HIGH);
   digitalWrite(26, HIGH);
   digitalWrite(27, LOW);
+
+  pixy.init();
+
+  xTaskCreatePinnedToCore(cameraProcessing, "lidar", 100000, NULL, 10, &camera_processing, 0);
+
 }
 
+
+
 void loop() {
+
+  // if (greenInFrame && redInFrame) {
+  //   if (greenY > redY) {
+  //     if (greenX < 130) {
+  //       servo.write(70); // right turn
+  //     } else {
+  //       servo.write(90);
+  //     }
+  //   } else {
+  //     if (redX > 180) {
+  //       servo.write(110); // left turn
+  //     } else {
+  //       servo.write(90);
+  //     }
+  //   }
+  // }
+  // if (greenInFrame){
+  //   if (greenX < 130) {
+  //     servo.write(70); // right turn
+  //   } else {
+  //     servo.write(90);
+  //   }
+  //   Serial.printf("Green is in frame: x -> %i, y -> %i\n", greenX, greenY);
+  // }
+  // else if (redInFrame){
+  //   if (redX > 180) {
+  //     servo.write(110); // left turn
+  //   } else {
+  //     servo.write(90);
+  //   }
+  //   Serial.printf("Red is in frame: x -> %i, y -> %i\n", redX, redY);
+  // } else {
+  //   servo.write(90);
+  // }
+
   // receive data from master
   if (hs.available()) {
     int header = hs.read();
