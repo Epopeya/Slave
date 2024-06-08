@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
-#include <Pixy2.h>
+#include "HUSKYLENS.h"
+#include "HardwareSerial.h"
 
 
 #define SERVO_MAX 115
@@ -9,21 +10,21 @@
 
 // Connecion with master
 HardwareSerial hs(1);
+HUSKYLENS huskylens;
+HardwareSerial camSerial(2); // RX, TX
 
-Pixy2 pixy;
 
-#define BLOCK_LIFE_TIME 100 // millis after which block is ded
-#define BLOCK_MIN_AGE 2 // min frames before block is in frame
+#define greenId 2
+#define redID 1
 
+// origin is TOP LEFT
 int greenX = 0;
 int greenY = 0;
 bool greenInFrame = false;
-int greenLastFrame = 0;
 
 int redX = 0;
 int redY = 0;
 bool redInFrame = false;
-int redLastFrame = 0;
 
 #define BATTERY_REPORT_RATE 50
 unsigned long last_battery_report = 0;
@@ -74,9 +75,9 @@ float computeMotorSpeed() {
 
 void sendSerialBlocks(int color, bool inFrame) {
   const int negativeOne = -1;
-  if (color == 0) { // 0 green, 1 red
+  if (color == greenId) { // 0 green, 1 red
     hs.write(SerialBlocks);
-    hs.write(color); 
+    hs.write(0); 
     if (inFrame) {
       Serial.printf("Green is in frame: x -> %i, y -> %i\n", greenX, greenY);
       hs.write((uint8_t *)&greenX, sizeof(int));
@@ -87,9 +88,9 @@ void sendSerialBlocks(int color, bool inFrame) {
 
     }
   }
-   else if (color == 1) {
+   else if (color == redID) {
     hs.write(SerialBlocks);
-    hs.write(color);
+    hs.write(1);
     if (inFrame) {
       hs.write((uint8_t *)&redX, sizeof(int));
       hs.write((uint8_t *)&redY, sizeof(int));
@@ -105,36 +106,44 @@ void cameraProcessing(void *pvParameters) {
   for (;;) {
     vTaskDelay(10);
     // detect blocks
-    pixy.ccc.getBlocks();
-    if (pixy.ccc.numBlocks)
+    int32_t error;
+    greenInFrame = false;
+    redInFrame = false;
+    if (!huskylens.request()) Serial.println("Fail to request objects from HUSKYLENS!");
+    else if(!huskylens.isLearned()) {}
+    else if(!huskylens.available()) {}
+    else
     {
-      for (int i=0; i<pixy.ccc.numBlocks; i++)
-      {
-        Block *current_block = &pixy.ccc.blocks[i];
-        if (current_block->m_signature == 1) { // green block
-          greenX = current_block->m_x;
-          greenY = current_block->m_y;
-          if (current_block->m_age > 2) {
-            greenInFrame = true;
-            greenLastFrame = millis();
-          }
+        if (huskylens.countBlocks(greenId)) {
+          HUSKYLENSResult result = huskylens.getBlock(greenId, 0);
+          greenInFrame = true;
+          greenX = result.xCenter;
+          greenY = result.yCenter;
         }
-        if (current_block->m_signature == 2) { // red block
-          redX = current_block->m_x;
-          redY = current_block->m_y;
-          if (current_block->m_age > 2) {
-            redInFrame = true;
-            redLastFrame = millis();
-          }
+        if (huskylens.countBlocks(redID)) {
+          HUSKYLENSResult result = huskylens.getBlock(redID, 0);
+          redInFrame = true;
+          redX = result.xCenter;
+          redY = result.yCenter;
         }
-      }
-    }  
+        // HUSKYLENSResult result = huskylens.read();
+
+        // Serial.println(String()+
+        // F("Block:xCenter=")+result.xCenter+
+        // F(",yCenter=")+result.yCenter+
+        // F(",width=")+result.width+
+        // F(",height=")+result.height+
+        // F(",frame=")+result.frameNum+
+        // F(",ID=")+result.ID
+        // );
+    }
 
     // check if blocks should be out of frame
-    if (greenInFrame && millis() - greenLastFrame > BLOCK_LIFE_TIME) { greenInFrame = false; sendSerialBlocks(0, false); }
-    if (redInFrame && millis() - redLastFrame > BLOCK_LIFE_TIME) { redInFrame = false;  sendSerialBlocks(1, false); }
-    if (greenInFrame) { sendSerialBlocks(0, true); }
-    if (redInFrame) { sendSerialBlocks(1, true); }
+    if (greenInFrame) { sendSerialBlocks(greenId, true); }
+    else { sendSerialBlocks(greenId, false); }
+    if (redInFrame) { sendSerialBlocks(redID, true); }
+    else { sendSerialBlocks(redID, false); }
+
   }
 }
 
@@ -154,9 +163,20 @@ void setup() {
   digitalWrite(26, HIGH);
   digitalWrite(27, LOW);
 
-  pixy.init();
+  camSerial.begin(9600, SERIAL_8N1, 19, 23);
+  huskylens.begin(camSerial);
+  // while (!huskylens.begin(camSerial))
+  // {
+  //     Serial.println("Begin failed!");
+  //     Serial.println(F("1.Please recheck the \"Protocol Type\" in HUSKYLENS (General Settings>>Protocol Type>>Serial 9600)"));
+  //     Serial.println(F("2.Please recheck the connection."));
+  //     delay(100);
+  // }
 
-  xTaskCreatePinnedToCore(cameraProcessing, "lidar", 100000, NULL, 10, &camera_processing, 0);
+  huskylens.writeAlgorithm(ALGORITHM_COLOR_RECOGNITION); //Switch the algorithm to object tracking.
+
+
+  xTaskCreatePinnedToCore(cameraProcessing, "camera", 100000, NULL, 10, &camera_processing, 0);
 
 }
 
@@ -234,6 +254,7 @@ void loop() {
     encoder_diff = 0;
     int motor_speed = computeMotorSpeed();
     analogWrite(14, min(motor_speed, 120));
+    // analogWrite(14, 0);
     next_motor_write = next_motor_write + 10;
   }
 
