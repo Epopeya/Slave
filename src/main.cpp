@@ -61,28 +61,45 @@ void encoderInt() {
 }
 
 void sendSerialBlocks(int color, bool inFrame) {
-  const int negativeOne = -1;
-  if (color == greenId) {  // 0 green, 1 red
-    hs.write(SerialBlocks);
-    hs.write(0);
-    if (inFrame) {
-      hs.write((uint8_t *)&greenX, sizeof(int));
-      hs.write((uint8_t *)&greenY, sizeof(int));
-    } else {
-      hs.write((uint8_t *)&negativeOne, sizeof(int));
-      hs.write((uint8_t *)&negativeOne, sizeof(int));
-    }
+  const unsigned char leavesScene[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+  unsigned char buf[11] = {
+    0x16,
+    SerialBlocks,
+    0,
+  };
+
+  if (color == greenId) {
+    buf[2] = 0;
   } else if (color == redID) {
-    hs.write(SerialBlocks);
-    hs.write(1);
-    if (inFrame) {
-      hs.write((uint8_t *)&redX, sizeof(int));
-      hs.write((uint8_t *)&redY, sizeof(int));
-    } else {
-      hs.write((uint8_t *)&negativeOne, sizeof(int));
-      hs.write((uint8_t *)&negativeOne, sizeof(int));
-    }
+    buf[2] = 1;
   }
+  if (inFrame) {
+    if (color == greenId) {
+      buf[3] = greenX & 0xFF;
+      buf[4] = (greenX >> 8) & 0xFF;
+      buf[5] = (greenX >> 16) & 0xFF;
+      buf[6] = (greenX >> 24) & 0xFF;
+
+      buf[7] = greenY & 0xFF;
+      buf[8] = (greenY >> 8) & 0xFF;
+      buf[9] = (greenY >> 16) & 0xFF;
+      buf[10] = (greenY >> 24) & 0xFF;
+    } else if (color == redID) {
+      buf[3] = redX & 0xFF;
+      buf[4] = (redX >> 8) & 0xFF;
+      buf[5] = (redX >> 16) & 0xFF;
+      buf[6] = (redX >> 24) & 0xFF;
+
+      buf[7] = redY & 0xFF;
+      buf[8] = (redY >> 8) & 0xFF;
+      buf[9] = (redY >> 16) & 0xFF;
+      buf[10] = (redY >> 24) & 0xFF;
+    }
+  } else {
+    memcpy(buf + 3, leavesScene, sizeof(leavesScene));
+    memcpy(buf + 7, leavesScene, sizeof(leavesScene));
+  }
+  hs.write(buf, sizeof(buf));
 }
 
 void cameraProcessing(void *pvParameters) {
@@ -199,7 +216,7 @@ void loop() {
   }
 
   // update motor speed
-  if(motorTimer.isPrimed()) {
+  if (motorTimer.isPrimed()) {
     current_speed = 0.95f * current_speed + 0.05f * (total_encoders - motor_encoder);
     float error = target_speed - current_speed;
 
@@ -222,9 +239,9 @@ void loop() {
     serial_encoder = total_encoders;
   }
 
-  if(batteryTimer.isPrimed()) {
+  if (batteryTimer.isPrimed()) {
     uint16_t voltage = analogRead(36);
-    uint8_t buf[] = { 0x16,SerialBattery,voltage & 0xFF, (voltage >> 8) & 0xFF };
+    uint8_t buf[] = { 0x16, SerialBattery, voltage & 0xFF, (voltage >> 8) & 0xFF };
     hs.write(buf, sizeof(uint16_t));
   }
 }
