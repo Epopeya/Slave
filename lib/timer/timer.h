@@ -1,7 +1,7 @@
 #include <Arduino.h>
 class Timer {
     public:
-        Timer(int time): time(time), last_time(millis()) {}
+        Timer(int time): time(time), last_time(micros()) {}
         bool isPrimed();
         int time;
     private:
