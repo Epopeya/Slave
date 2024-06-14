@@ -47,7 +47,8 @@ Servo servo;
 
 
 // PID parameters
-PID motorPID(40, 25, 10);
+//PID motorPID(40, 25, 10);
+PID motorPID(0.3, 0.2, 0);
 
 volatile unsigned int total_encoders = 0;
 
@@ -171,14 +172,14 @@ void setup() {
 
 
 float motor_speed = 0;
-#define MOTOR_UPDATE_RATE 100000
+#define MOTOR_UPDATE_RATE 20000
 Timer motorTimer(MOTOR_UPDATE_RATE);
 Timer batteryTimer(BATTERY_REPORT_RATE);
 
 int serial_encoder = 0;
 int motor_encoder = 0;
 
-void loop() {
+void loop() {  
   // receive data from master
   if (hs.available()) {
     int start = hs.read();
@@ -191,7 +192,7 @@ void loop() {
             uint8_t buf[4] = { 0 };
             hs.readBytes(buf, sizeof(buf));
             int speed = buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
-            motorPID.target = 0.1f; //speed / 10.0f;
+            motorPID.target = speed;
             break;
           }
         case SerialServo:
@@ -212,9 +213,10 @@ void loop() {
 
   // update motor speed
   if (motorTimer.isPrimed()) {
-    analogWrite(MOTOR_PIN, 60);
     float speed = (total_encoders - motor_encoder) / (MOTOR_UPDATE_RATE * 1e-6);
-    Serial.printf("total: %d, motor: %d, speed: %f\n", total_encoders, motor_encoder, speed);
+    float motor_speed = motorPID.update(speed);
+    analogWrite(MOTOR_PIN, motor_speed);
+    // Serial.printf("total: %d, motor: %d, speed: %f, motor_speed: %f\n", total_encoders, motor_encoder, speed, motor_speed);
     motor_encoder = total_encoders;
   }
 
