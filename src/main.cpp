@@ -36,13 +36,13 @@ int redY = 0;
 bool redInFrame = false;
 
 // battery
-#define BATTERY_REPORT_RATE 50
+#define BATTERY_REPORT_RATE 500000
 unsigned long last_battery_report = 0;
 
 // servo
 #define SERVO_MAX 115
 #define SERVO_MIN 70
-#define SERVO_MID 93
+#define SERVO_MID 90
 Servo servo;
 
 
@@ -232,7 +232,9 @@ void loop() {
 
   if (batteryTimer.isPrimed()) {
     uint16_t voltage = analogRead(36);
+    //Serial.printf("battery: %d\n", voltage);
     uint8_t buf[] = { 0x16, SerialBattery, voltage & 0xFF, (voltage >> 8) & 0xFF };
-    hs.write(buf, sizeof(uint16_t));
+    //Serial.printf("battery buf: %d %d\n", buf[2], buf[3]);
+    hs.write(buf, sizeof(buf));
   }
 }
