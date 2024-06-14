@@ -40,8 +40,8 @@ bool redInFrame = false;
 unsigned long last_battery_report = 0;
 
 // servo
-#define SERVO_MAX 140
-#define SERVO_MIN 80
+#define SERVO_MAX 135
+#define SERVO_MIN 85
 #define SERVO_MID 110
 Servo servo;
 
