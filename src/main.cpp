@@ -40,9 +40,9 @@ bool redInFrame = false;
 unsigned long last_battery_report = 0;
 
 // servo
-#define SERVO_MAX 115
-#define SERVO_MIN 70
-#define SERVO_MID 90
+#define SERVO_MAX 140
+#define SERVO_MIN 80
+#define SERVO_MID 110
 Servo servo;
 
 
@@ -179,7 +179,27 @@ Timer batteryTimer(BATTERY_REPORT_RATE);
 int serial_encoder = 0;
 int motor_encoder = 0;
 
-void loop() {  
+void loop() {
+  // for(int i = 80; i < 120; i++) {
+  //   servo.write(i);
+  // Serial.println(i);
+  // delay(500);
+
+  // }
+  
+  // return;
+  // for (int i = SERVO_MIN; i < SERVO_MAX; i++) {
+  //   servo.write(i);
+  //   if(SERVO_MID == i) {
+  //     delay(1000);
+  //   }
+  //   delay(20);
+  // }
+  // for (int i = SERVO_MAX; i > SERVO_MIN; i--) {
+  //   servo.write(i);
+  //   delay(20);
+  // }
+  // return;
   // receive data from master
   if (hs.available()) {
     int start = hs.read();
