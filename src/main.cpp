@@ -25,8 +25,8 @@ enum SerialCommands {
 // camera
 TaskHandle_t camera_processing;
 
-#define greenId 2
-#define redID 1
+#define greenId 1
+#define redID 2
 
 int greenX = 0;
 int greenY = 0;
