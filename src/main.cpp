@@ -134,15 +134,25 @@ void cameraProcessing(void *pvParameters) {
     }
 
     // check if blocks should be out of frame
-    if (greenInFrame) {
-      sendSerialBlocks(greenId, true);
+    if (greenInFrame or redInFrame) {
+      if (redY > greenY) {
+        sendSerialBlocks(greenId, false);
+        sendSerialBlocks(redID, true);
+      } else {
+        sendSerialBlocks(redID, false);
+        sendSerialBlocks(greenId, true);
+      }
     } else {
-      sendSerialBlocks(greenId, false);
-    }
-    if (redInFrame) {
-      sendSerialBlocks(redID, true);
-    } else {
-      sendSerialBlocks(redID, false);
+      if (greenInFrame) {
+        sendSerialBlocks(greenId, true);
+      } else {
+        sendSerialBlocks(greenId, false);
+      }
+      if (redInFrame) {
+        sendSerialBlocks(redID, true);
+      } else {
+        sendSerialBlocks(redID, false);
+      }
     }
   }
 }
@@ -186,7 +196,7 @@ void loop() {
   // delay(500);
 
   // }
-  
+
   // return;
   // for (int i = SERVO_MIN; i < SERVO_MAX; i++) {
   //   servo.write(i);
@@ -235,10 +245,10 @@ void loop() {
   if (motorTimer.isPrimed()) {
     float speed = (total_encoders - motor_encoder) / (MOTOR_UPDATE_RATE * 1e-6);
     float motor_speed = motorPID.update(speed);
-    if(motorPID.target == 0){
-        analogWrite(MOTOR_PIN, 0);
+    if (motorPID.target == 0) {
+      analogWrite(MOTOR_PIN, 0);
     } else {
-        analogWrite(MOTOR_PIN, motor_speed);
+      analogWrite(MOTOR_PIN, motor_speed);
     }
     // Serial.printf("total: %d, motor: %d, speed: %f, motor_speed: %f\n", total_encoders, motor_encoder, speed, motor_speed);
     motor_encoder = total_encoders;
