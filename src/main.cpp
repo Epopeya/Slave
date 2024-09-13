@@ -248,7 +248,17 @@ void loop() {
     if (motorPID.target == 0) {
       analogWrite(MOTOR_PIN, 0);
     } else {
-      analogWrite(MOTOR_PIN, motor_speed);
+      if (motor_speed < 0) {
+        digitalWrite(25, HIGH);
+        digitalWrite(26, LOW);
+        digitalWrite(27, HIGH);
+        analogWrite(MOTOR_PIN, abs(motor_speed));
+      } else {
+        digitalWrite(25, HIGH);
+        digitalWrite(26, HIGH);
+        digitalWrite(27, LOW);
+        analogWrite(MOTOR_PIN, motor_speed);
+      }
     }
     // Serial.printf("total: %d, motor: %d, speed: %f, motor_speed: %f\n", total_encoders, motor_encoder, speed, motor_speed);
     motor_encoder = total_encoders;
