@@ -252,7 +252,7 @@ void loop() {
         digitalWrite(25, HIGH);
         digitalWrite(26, LOW);
         digitalWrite(27, HIGH);
-        analogWrite(MOTOR_PIN, abs(motor_speed));
+        analogWrite(MOTOR_PIN, min(200, abs(motor_speed)));
       } else {
         digitalWrite(25, HIGH);
         digitalWrite(26, HIGH);
